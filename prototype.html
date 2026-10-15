@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planning vibe coding · prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #FAF8F3;
+    --surface: #FFFFFF;
+    --ink: #211C17;
+    --ink-soft: #6B635A;
+    --rule: #E6E1D7;
+    --rule-strong: #CFC8BB;
+    --grid: rgba(33, 28, 23, 0.045);
+    --critical: #E0542B;
+    --critical-hover: #C8461F;
+    --task: #6B635A;
+    --task-hover: #4F4841;
+    --slack: #DDD6CA;
+    --link: #A39C93;
+    --link-hover: #211C17;
+    --serif: "Instrument Serif", Georgia, serif;
+    --sans: "Geist", "Helvetica Neue", Arial, sans-serif;
+    --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #131313; --surface: #1E1E1E; --ink: #EDEAE4; --ink-soft: #A39D95;
+      --rule: #2C2C2C; --rule-strong: #3E3E3E; --grid: rgba(255, 255, 255, 0.035);
+      --critical: #E8653E; --critical-hover: #F07A55; --task: #8D867E; --task-hover: #A8A199;
+      --slack: #3A3A3A; --link: #6F6B66; --link-hover: #EDEAE4;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--paper);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--ink);
+    font: 400 15px/1.5 var(--sans);
+  }
+  .page { max-width: 1400px; margin: 0 auto; padding: 28px 24px 48px; display: grid; gap: 18px; }
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; }
+  h1 { font: 400 2.6rem/1 var(--serif); margin: 0; letter-spacing: -0.01em; }
+  .sub { margin: 6px 0 0; color: var(--ink-soft); font-size: 0.9rem; }
+  .end { display: grid; gap: 2px; }
+  .label { font: 500 0.72rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+  .end strong { font: 400 1.9rem/1.1 var(--serif); }
+  #end-summary { color: var(--ink-soft); font-size: 0.9rem; }
+  .actions { display: flex; gap: 10px; }
+  button { font: inherit; color: inherit; }
+  .btn { font-weight: 500; background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 6px; padding: 10px 16px; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
+  .btn:hover:not(:disabled) { border-color: var(--ink); }
+  .btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn.primary:hover { background: var(--ink-soft); border-color: var(--ink-soft); }
+  .btn:disabled { color: var(--ink-soft); cursor: not-allowed; opacity: 0.6; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  #message { margin: 0; min-height: 1.5em; color: var(--ink); }
+  #message.hint { color: var(--ink-soft); }
+
+  .board { display: grid; grid-template-columns: 270px 1fr; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .names { border-right: 1px solid var(--rule); }
+  .names-head { display: flex; align-items: flex-end; padding: 0 14px 10px; border-bottom: 1px solid var(--rule); }
+  .name-row { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--rule); }
+  .name { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 6px 4px; border-radius: 4px; cursor: text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background-color .15s; }
+  .name:hover { background: var(--paper); }
+  .name-input { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--ink); border-radius: 4px; padding: 5px 6px; }
+  .del { flex: none; width: 28px; height: 28px; border: 0; background: none; color: var(--ink-soft); border-radius: 4px; cursor: pointer; font-size: 1.1rem; line-height: 1; transition: color .15s, background-color .15s; }
+  .del:hover { color: var(--ink); background: var(--paper); }
+
+  .scroller { overflow-x: auto; }
+  .timeline { position: relative; user-select: none; }
+  .week { position: absolute; top: 8px; font: 500 0.72rem/1 var(--mono); color: var(--ink-soft); padding-left: 6px; border-left: 1px solid var(--rule-strong); height: 16px; }
+  .day { position: absolute; top: 30px; font: 400 0.68rem/1 var(--mono); color: var(--ink-soft); text-align: center; }
+  .rows { position: absolute; left: 0; right: 0; border-top: 1px solid var(--rule); }
+  .row-line { position: absolute; left: 0; right: 0; border-bottom: 1px solid var(--rule); }
+  .end-line { position: absolute; top: 0; bottom: 0; border-left: 2px dashed var(--ink); opacity: 0.55; }
+  .end-tag { position: absolute; top: 8px; font: 500 0.72rem/1 var(--mono); background: var(--ink); color: var(--paper); padding: 3px 6px; border-radius: 3px; }
+
+  svg.links { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .link { fill: none; stroke: var(--link); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 7; animation: flow 1s linear infinite; transition: stroke .15s; }
+  .link.blocker { stroke: var(--ink); stroke-dasharray: none; stroke-width: 3.5; animation: none; }
+  .link.pending { stroke: var(--ink); }
+  .link-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+  .link-hit:hover + .link { stroke: var(--link-hover); }
+  @keyframes flow { to { stroke-dashoffset: -9; } }
+  @media (prefers-reduced-motion: reduce) { .link { animation: none; } }
+
+  .slack { position: absolute; height: 8px; background: var(--slack); border-radius: 0 4px 4px 0; }
+  .slack-label { position: absolute; font: 400 0.68rem/1 var(--mono); color: var(--ink-soft); white-space: nowrap; }
+  .bar { position: absolute; border-radius: 5px; background: var(--task); color: #fff; cursor: grab; display: flex; align-items: center; padding-left: 8px; font: 500 0.74rem/1 var(--mono); transition: background-color .15s, box-shadow .15s; }
+  .bar:hover { background: var(--task-hover); }
+  .bar.critical { background: var(--critical); }
+  .bar.critical:hover { background: var(--critical-hover); }
+  .bar.active { cursor: grabbing; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+  .bar.pushed { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-soft); }
+  .bar.target { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+  .bar .dur { pointer-events: none; overflow: hidden; white-space: nowrap; }
+  .handle { position: absolute; top: 0; right: 0; width: 10px; height: 100%; cursor: ew-resize; border-radius: 0 5px 5px 0; }
+  .handle::after { content: ""; position: absolute; top: 7px; bottom: 7px; right: 3px; width: 2px; border-radius: 1px; background: rgba(255, 255, 255, 0.7); }
+  .dot { position: absolute; right: -17px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--link); cursor: crosshair; transition: border-color .15s, background-color .15s; }
+  .dot:hover { border-color: var(--ink); background: var(--ink); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 20px; color: var(--ink-soft); font-size: 0.86rem; margin: 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw { display: inline-block; width: 18px; height: 10px; border-radius: 2px; }
+  .sw.critical { background: var(--critical); }
+  .sw.task { background: var(--task); }
+  .sw.slack { background: var(--slack); height: 6px; }
+  .sw.link { height: 0; border-top: 3px dotted var(--link); border-radius: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div>
+      <h1>Planning vibe coding</h1>
+      <p class="sub">Prototype · le planning n'est pas sauvegardé</p>
+    </div>
+    <div class="end">
+      <span class="label">Fin du projet</span>
+      <strong id="end-date"></strong>
+      <span id="end-summary"></span>
+    </div>
+    <div class="actions">
+      <button class="btn" id="undo" type="button" disabled>Annuler</button>
+      <button class="btn primary" id="add" type="button">Ajouter une tâche</button>
+    </div>
+  </header>
+
+  <p id="message" class="hint" role="status"></p>
+
+  <div class="board">
+    <div class="names" id="names"></div>
+    <div class="scroller"><div class="timeline" id="timeline"></div></div>
+  </div>
+
+  <p class="legend">
+    <span><i class="sw critical"></i>Chemin critique : le moindre retard repousse la fin</span>
+    <span><i class="sw task"></i>Tâche avec de la marge</span>
+    <span><i class="sw slack"></i>Marge</span>
+    <span><i class="sw link"></i>Lien : la tâche suivante attend la fin de la précédente</span>
+  </p>
+</div>
+
+<script>
+// Logique de planification : fonctions pures sur un plan { tasks, links, nextId }
+var PlanningLogic = (function () {
+  "use strict";
+
+  var STEPS = [
+    ["Outils et périmètre technique", 3],
+    ["Prototypage rapide", 5],
+    ["Développement itératif encadré", 10],
+    ["Tests et validation continue", 4],
+    ["Gestion de version disciplinée", 2],
+    ["Sécurisation et robustesse", 3],
+    ["Documentation continue", 3]
+  ];
+  var MAX_NAME = 80;
+
+  function createDefaultPlan() {
+    var tasks = [];
+    var links = [];
+    var start = 0;
+    STEPS.forEach(function (step, index) {
+      var id = "t" + (index + 1);
+      tasks.push({ id: id, name: step[0], start: start, duration: step[1] });
+      if (index > 0) links.push({ from: "t" + index, to: id });
+      start += step[1];
+    });
+    return { tasks: tasks, links: links, nextId: STEPS.length + 1 };
+  }
+
+  function clone(plan) {
+    return JSON.parse(JSON.stringify(plan));
+  }
+
+  function findTask(plan, id) {
+    return plan.tasks.find(function (task) { return task.id === id; });
+  }
+
+  function taskEnd(task) {
+    return task.start + task.duration;
+  }
+
+  function topoOrder(plan) {
+    var indegree = {};
+    var next = {};
+    plan.tasks.forEach(function (task) { indegree[task.id] = 0; next[task.id] = []; });
+    plan.links.forEach(function (link) { indegree[link.to] += 1; next[link.from].push(link.to); });
+    var queue = plan.tasks.filter(function (task) { return indegree[task.id] === 0; }).map(function (task) { return task.id; });
+    var order = [];
+    while (queue.length) {
+      var id = queue.shift();
+      order.push(id);
+      next[id].forEach(function (to) {
+        indegree[to] -= 1;
+        if (indegree[to] === 0) queue.push(to);
+      });
+    }
+    return order;
+  }
+
+  // Début au plus tôt : la fin du prédécesseur le plus tardif
+  function earliestStart(plan, id) {
+    return plan.links.reduce(function (latest, link) {
+      return link.to === id ? Math.max(latest, taskEnd(findTask(plan, link.from))) : latest;
+    }, 0);
+  }
+
+  // Repousse juste ce qu'il faut ; une tâche n'est jamais avancée
+  function propagate(plan) {
+    topoOrder(plan).forEach(function (id) {
+      var task = findTask(plan, id);
+      task.start = Math.max(task.start, earliestStart(plan, id));
+    });
+    return plan;
+  }
+
+  function moveTask(plan, id, wantedStart) {
+    var next = clone(plan);
+    var task = findTask(next, id);
+    var minimum = earliestStart(next, id);
+    var blockerId = null;
+    if (wantedStart < minimum) {
+      var blocking = next.links.find(function (link) {
+        return link.to === id && taskEnd(findTask(next, link.from)) === minimum;
+      });
+      blockerId = blocking ? blocking.from : null;
+    }
+    task.start = Math.max(0, wantedStart, minimum);
+    return { plan: propagate(next), blockerId: blockerId };
+  }
+
+  function resizeTask(plan, id, wantedDuration) {
+    var next = clone(plan);
+    findTask(next, id).duration = Math.max(1, wantedDuration);
+    return propagate(next);
+  }
+
+  // Marge : retard possible sans repousser la fin du projet, successeurs compris
+  function computeSchedule(plan) {
+    var end = plan.tasks.reduce(function (latest, task) { return Math.max(latest, taskEnd(task)); }, 0);
+    var slack = {};
+    topoOrder(plan).reverse().forEach(function (id) {
+      var task = findTask(plan, id);
+      var margin = end - taskEnd(task);
+      plan.links.forEach(function (link) {
+        if (link.from !== id) return;
+        var successor = findTask(plan, link.to);
+        margin = Math.min(margin, successor.start - taskEnd(task) + slack[link.to]);
+      });
+      slack[id] = margin;
+    });
+    var critical = {};
+    plan.tasks.forEach(function (task) { critical[task.id] = slack[task.id] === 0; });
+    return { end: end, slack: slack, critical: critical };
+  }
+
+  function reaches(plan, fromId, targetId) {
+    var stack = [fromId];
+    var seen = {};
+    while (stack.length) {
+      var id = stack.pop();
+      if (id === targetId) return true;
+      if (seen[id]) continue;
+      seen[id] = true;
+      plan.links.forEach(function (link) { if (link.from === id) stack.push(link.to); });
+    }
+    return false;
+  }
+
+  function linkTasks(plan, fromId, toId) {
+    if (fromId === toId) return { error: "self" };
+    var exists = plan.links.some(function (link) { return link.from === fromId && link.to === toId; });
+    if (exists) return { error: "exists" };
+    if (reaches(plan, toId, fromId)) return { error: "cycle" };
+    var next = clone(plan);
+    next.links.push({ from: fromId, to: toId });
+    return { plan: propagate(next) };
+  }
+
+  function unlinkTasks(plan, fromId, toId) {
+    var next = clone(plan);
+    next.links = next.links.filter(function (link) { return !(link.from === fromId && link.to === toId); });
+    return next;
+  }
+
+  function cleanName(name) {
+    return String(name).replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
+  }
+
+  function addTask(plan, name) {
+    var next = clone(plan);
+    var id = "t" + next.nextId;
+    next.nextId += 1;
+    next.tasks.push({ id: id, name: cleanName(name), start: 0, duration: 3 });
+    return { plan: next, id: id };
+  }
+
+  function renameTask(plan, id, name) {
+    var cleaned = cleanName(name);
+    if (!cleaned) return plan;
+    var next = clone(plan);
+    findTask(next, id).name = cleaned;
+    return next;
+  }
+
+  function removeTask(plan, id) {
+    var next = clone(plan);
+    next.tasks = next.tasks.filter(function (task) { return task.id !== id; });
+    next.links = next.links.filter(function (link) { return link.from !== id && link.to !== id; });
+    return next;
+  }
+
+  function pushedTasks(before, after, exceptId) {
+    return after.tasks.filter(function (task) {
+      var previous = findTask(before, task.id);
+      return task.id !== exceptId && previous && task.start > previous.start;
+    }).map(function (task) { return task.id; });
+  }
+
+  function nextMonday(date) {
+    var day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    day.setDate(day.getDate() + (((8 - day.getDay()) % 7) || 7));
+    return day;
+  }
+
+  // Jour ouvré n → date réelle, lundi à vendredi
+  function workdayToDate(startDate, index) {
+    var day = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    day.setDate(day.getDate() + Math.floor(index / 5) * 7 + (index % 5));
+    return day;
+  }
+
+  return {
+    createDefaultPlan: createDefaultPlan, findTask: findTask, taskEnd: taskEnd,
+    moveTask: moveTask, resizeTask: resizeTask, computeSchedule: computeSchedule,
+    linkTasks: linkTasks, unlinkTasks: unlinkTasks, addTask: addTask, renameTask: renameTask,
+    removeTask: removeTask, pushedTasks: pushedTasks, nextMonday: nextMonday, workdayToDate: workdayToDate,
+    MAX_NAME: MAX_NAME
+  };
+})();
+</script>
+
+<script>
+// Affichage et gestes
+(function () {
+  "use strict";
+  var L = PlanningLogic;
+  var DAY_W = 30;
+  var ROW_H = 46;
+  var HEAD_H = 48;
+  var BAR_H = 26;
+  var DAY_LETTERS = ["L", "M", "M", "J", "V"];
+  var HINT = "Glissez une barre pour la déplacer, son bord droit pour l'étirer, son rond pour la relier à une autre tâche. Un clic sur un lien le retire, un clic sur un nom le renomme.";
+  var LONG_DATE = new Intl.DateTimeFormat("fr-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  var SHORT_DATE = new Intl.DateTimeFormat("fr-CH", { day: "numeric", month: "short" });
+
+  var startDate = L.nextMonday(new Date());
+  var plan = L.createDefaultPlan();
+  var undoStack = [];
+  var gesture = null;
+  var editingId = null;
+
+  var namesEl = document.getElementById("names");
+  var timelineEl = document.getElementById("timeline");
+  var messageEl = document.getElementById("message");
+  var endDateEl = document.getElementById("end-date");
+  var endSummaryEl = document.getElementById("end-summary");
+  var undoButton = document.getElementById("undo");
+  var addButton = document.getElementById("add");
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function svgEl(tag, attrs) {
+    var node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    Object.keys(attrs).forEach(function (key) { node.setAttribute(key, attrs[key]); });
+    return node;
+  }
+
+  function say(text) {
+    messageEl.textContent = text || HINT;
+    messageEl.className = text ? "" : "hint";
+  }
+
+  function nameOf(view, id) {
+    var task = L.findTask(view, id);
+    return task ? "« " + task.name + " »" : "";
+  }
+
+  function plural(count, word) {
+    return count + " " + word + (count > 1 ? "s" : "");
+  }
+
+  function commit(next) {
+    if (JSON.stringify(next) === JSON.stringify(plan)) return false;
+    undoStack.push(plan);
+    plan = next;
+    return true;
+  }
+
+  function linkPath(x1, y1, x2, y2) {
+    var bend = Math.max(14, Math.abs(x2 - x1) / 2);
+    return "M" + x1 + " " + y1 + " C" + (x1 + bend) + " " + y1 + " " + (x2 - bend) + " " + y2 + " " + x2 + " " + y2;
+  }
+
+  function render(view, info) {
+    view = view || plan;
+    info = info || {};
+    var schedule = L.computeSchedule(view);
+    var weeks = Math.max(6, Math.ceil((schedule.end + 6) / 5));
+    var columns = weeks * 5;
+    var rowOf = {};
+    view.tasks.forEach(function (task, index) { rowOf[task.id] = index; });
+    var height = HEAD_H + view.tasks.length * ROW_H;
+
+    // Date de fin
+    if (schedule.end > 0) {
+      endDateEl.textContent = LONG_DATE.format(L.workdayToDate(startDate, schedule.end - 1));
+      var criticalCount = view.tasks.filter(function (task) { return schedule.critical[task.id]; }).length;
+      endSummaryEl.textContent = plural(schedule.end, "jour ouvré") + " · " + criticalCount + " sur " + plural(view.tasks.length, "tâche") + " critiques";
+    } else {
+      endDateEl.textContent = "aucune tâche";
+      endSummaryEl.textContent = "";
+    }
+    undoButton.disabled = undoStack.length === 0 || gesture !== null;
+
+    // Colonne des noms
+    namesEl.replaceChildren();
+    var head = el("div", "names-head");
+    head.style.height = HEAD_H + "px";
+    head.appendChild(el("span", "label", "Tâche"));
+    namesEl.appendChild(head);
+    view.tasks.forEach(function (task) {
+      var row = el("div", "name-row");
+      row.style.height = ROW_H + "px";
+      if (editingId === task.id) {
+        var input = el("input", "name-input");
+        input.value = task.name;
+        input.maxLength = L.MAX_NAME;
+        input.setAttribute("aria-label", "Nom de la tâche");
+        input.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") finishRename(task.id, input.value);
+          if (event.key === "Escape") finishRename(task.id, null);
+        });
+        input.addEventListener("blur", function () { finishRename(task.id, input.value); });
+        row.appendChild(input);
+        setTimeout(function () { input.focus(); input.select(); }, 0);
+      } else {
+        var name = el("button", "name", task.name);
+        name.type = "button";
+        name.title = "Renommer";
+        name.addEventListener("click", function () { editingId = task.id; render(); });
+        row.appendChild(name);
+      }
+      var del = el("button", "del", "×");
+      del.type = "button";
+      del.setAttribute("aria-label", "Supprimer « " + task.name + " »");
+      del.title = "Supprimer";
+      del.addEventListener("click", function () {
+        var label = nameOf(plan, task.id);
+        commit(L.removeTask(plan, task.id));
+        say(label + " supprimée. « Annuler » la fait revenir.");
+        render();
+      });
+      row.appendChild(del);
+      namesEl.appendChild(row);
+    });
+
+    // Frise
+    timelineEl.replaceChildren();
+    timelineEl.style.width = (columns * DAY_W + 24) + "px";
+    timelineEl.style.height = height + "px";
+    for (var week = 0; week < weeks; week += 1) {
+      var weekEl = el("div", "week", SHORT_DATE.format(L.workdayToDate(startDate, week * 5)));
+      weekEl.style.left = (week * 5 * DAY_W) + "px";
+      weekEl.style.width = (5 * DAY_W) + "px";
+      timelineEl.appendChild(weekEl);
+    }
+    for (var day = 0; day < columns; day += 1) {
+      var dayEl = el("div", "day", DAY_LETTERS[day % 5]);
+      dayEl.style.left = (day * DAY_W) + "px";
+      dayEl.style.width = DAY_W + "px";
+      timelineEl.appendChild(dayEl);
+    }
+    var rows = el("div", "rows");
+    rows.style.top = HEAD_H + "px";
+    rows.style.height = (view.tasks.length * ROW_H) + "px";
+    rows.style.backgroundImage = "linear-gradient(90deg, var(--rule-strong) 1px, transparent 1px), linear-gradient(90deg, var(--rule) 1px, transparent 1px)";
+    rows.style.backgroundSize = (5 * DAY_W) + "px 100%, " + DAY_W + "px 100%";
+    view.tasks.forEach(function (task, index) {
+      var line = el("div", "row-line");
+      line.style.top = ((index + 1) * ROW_H - 1) + "px";
+      rows.appendChild(line);
+    });
+    timelineEl.appendChild(rows);
+
+    if (schedule.end > 0) {
+      var endLine = el("div", "end-line");
+      endLine.style.left = (schedule.end * DAY_W - 1) + "px";
+      timelineEl.appendChild(endLine);
+    }
+
+    // Liens
+    var svg = svgEl("svg", { "class": "links", width: columns * DAY_W + 24, height: height });
+    view.links.forEach(function (link) {
+      var from = L.findTask(view, link.from);
+      var to = L.findTask(view, link.to);
+      var d = linkPath(L.taskEnd(from) * DAY_W - 2, HEAD_H + rowOf[from.id] * ROW_H + ROW_H / 2,
+        to.start * DAY_W + 2, HEAD_H + rowOf[to.id] * ROW_H + ROW_H / 2);
+      var isBlocker = info.blocker && info.blocker.from === link.from && info.blocker.to === link.to;
+      var hit = svgEl("path", { "class": "link-hit", d: d });
+      var title = svgEl("title", {});
+      title.textContent = "Retirer le lien " + from.name + " → " + to.name;
+      hit.appendChild(title);
+      hit.addEventListener("click", function () {
+        commit(L.unlinkTasks(plan, link.from, link.to));
+        say("Lien retiré entre " + nameOf(plan, link.from) + " et " + nameOf(plan, link.to) + ".");
+        render();
+      });
+      svg.appendChild(hit);
+      svg.appendChild(svgEl("path", { "class": "link" + (isBlocker ? " blocker" : ""), d: d }));
+    });
+    if (info.linking) {
+      var source = L.findTask(view, info.linking.fromId);
+      svg.appendChild(svgEl("path", {
+        "class": "link pending",
+        d: linkPath(L.taskEnd(source) * DAY_W + 10, HEAD_H + rowOf[source.id] * ROW_H + ROW_H / 2, info.linking.x, info.linking.y)
+      }));
+    }
+    timelineEl.appendChild(svg);
+
+    // Marges et barres
+    view.tasks.forEach(function (task, index) {
+      var top = HEAD_H + index * ROW_H + (ROW_H - BAR_H) / 2;
+      var slack = schedule.slack[task.id];
+      if (slack > 0) {
+        var slackEl = el("div", "slack");
+        slackEl.style.left = (L.taskEnd(task) * DAY_W) + "px";
+        slackEl.style.width = (slack * DAY_W) + "px";
+        slackEl.style.top = (top + BAR_H / 2 - 4) + "px";
+        timelineEl.appendChild(slackEl);
+        var slackLabel = el("div", "slack-label", "marge " + slack + " j");
+        slackLabel.style.left = (L.taskEnd(task) * DAY_W + 22) + "px";
+        slackLabel.style.top = (top + BAR_H / 2 + 7) + "px";
+        timelineEl.appendChild(slackLabel);
+      }
+      var classes = ["bar"];
+      if (schedule.critical[task.id]) classes.push("critical");
+      if (info.activeId === task.id) classes.push("active");
+      if (info.pushed && info.pushed.indexOf(task.id) !== -1) classes.push("pushed");
+      if (info.targetId === task.id) classes.push("target");
+      var bar = el("div", classes.join(" "));
+      bar.dataset.id = task.id;
+      bar.title = task.name;
+      bar.style.left = (task.start * DAY_W + 2) + "px";
+      bar.style.width = (task.duration * DAY_W - 4) + "px";
+      bar.style.top = top + "px";
+      bar.style.height = BAR_H + "px";
+      bar.appendChild(el("span", "dur", task.duration + " j"));
+      var handle = el("div", "handle");
+      handle.title = "Étirer pour changer la durée";
+      bar.appendChild(handle);
+      var dot = el("div", "dot");
+      dot.title = "Glisser vers une autre tâche pour les relier";
+      bar.appendChild(dot);
+      timelineEl.appendChild(bar);
+    });
+
+    if (schedule.end > 0) {
+      var tag = el("div", "end-tag", "Fin");
+      tag.style.left = (schedule.end * DAY_W + 4) + "px";
+      timelineEl.appendChild(tag);
+    }
+  }
+
+  function finishRename(id, value) {
+    if (editingId !== id) return;
+    editingId = null;
+    if (value !== null) commit(L.renameTask(plan, id, value));
+    render();
+  }
+
+  function barAt(x, y) {
+    var target = document.elementFromPoint(x, y);
+    var bar = target && target.closest ? target.closest(".bar") : null;
+    return bar ? bar.dataset.id : null;
+  }
+
+  function describeEffect(before, after, movedId, blockerId) {
+    var parts = [];
+    if (blockerId) parts.push(nameOf(after, movedId) + " bute sur la fin de " + nameOf(after, blockerId) + ".");
+    var pushed = L.pushedTasks(before, after, movedId);
+    if (pushed.length) parts.push("Repoussées : " + pushed.map(function (id) { return nameOf(after, id); }).join(", ") + ".");
+    var oldEnd = L.computeSchedule(before).end;
+    var newEnd = L.computeSchedule(after).end;
+    if (newEnd !== oldEnd) parts.push("La fin du projet passe de " + plural(oldEnd, "jour") + " à " + plural(newEnd, "jour") + ".");
+    return parts.join(" ");
+  }
+
+  function onPointerMove(event) {
+    if (!gesture) return;
+    var days = Math.round((event.clientX - gesture.x0) / DAY_W);
+    var base = gesture.base;
+    var task = L.findTask(base, gesture.id);
+    if (gesture.kind === "move") {
+      var moved = L.moveTask(base, gesture.id, task.start + days);
+      gesture.result = moved.plan;
+      gesture.blockerId = moved.blockerId;
+    } else if (gesture.kind === "resize") {
+      gesture.result = L.resizeTask(base, gesture.id, task.duration + days);
+      gesture.blockerId = null;
+    } else {
+      var box = timelineEl.getBoundingClientRect();
+      var targetId = barAt(event.clientX, event.clientY);
+      render(base, {
+        linking: { fromId: gesture.id, x: event.clientX - box.left, y: event.clientY - box.top },
+        targetId: targetId && targetId !== gesture.id ? targetId : null
+      });
+      say(targetId && targetId !== gesture.id
+        ? "Relâchez pour que " + nameOf(base, targetId) + " attende la fin de " + nameOf(base, gesture.id) + "."
+        : "Glissez jusqu'à la barre de la tâche qui doit attendre " + nameOf(base, gesture.id) + ".");
+      return;
+    }
+    render(gesture.result, {
+      activeId: gesture.id,
+      pushed: L.pushedTasks(base, gesture.result, gesture.id),
+      blocker: gesture.blockerId ? { from: gesture.blockerId, to: gesture.id } : null
+    });
+    say(describeEffect(base, gesture.result, gesture.id, gesture.blockerId) || " ");
+  }
+
+  function onPointerUp(event) {
+    document.removeEventListener("pointermove", onPointerMove);
+    var current = gesture;
+    gesture = null;
+    if (!current) return;
+    if (current.kind === "link") {
+      var targetId = barAt(event.clientX, event.clientY);
+      if (targetId && targetId !== current.id) {
+        var linked = L.linkTasks(plan, current.id, targetId);
+        if (linked.error === "cycle") {
+          say("Lien refusé : il créerait une boucle, le planning deviendrait impossible à calculer.");
+        } else if (linked.error === "exists") {
+          say("Ces deux tâches sont déjà reliées.");
+        } else if (linked.plan) {
+          var effect = describeEffect(plan, linked.plan, current.id, null);
+          commit(linked.plan);
+          say("Lien ajouté : " + nameOf(plan, targetId) + " attend la fin de " + nameOf(plan, current.id) + ". " + effect);
+        }
+      } else {
+        say("");
+      }
+      render();
+      return;
+    }
+    if (current.result) {
+      var summary = describeEffect(current.base, current.result, current.id, null);
+      if (commit(current.result)) say(summary);
+      else say("");
+    }
+    render();
+  }
+
+  timelineEl.addEventListener("pointerdown", function (event) {
+    if (event.button !== 0) return;
+    var bar = event.target.closest(".bar");
+    if (!bar) return;
+    event.preventDefault();
+    var kind = event.target.closest(".dot") ? "link" : event.target.closest(".handle") ? "resize" : "move";
+    gesture = { kind: kind, id: bar.dataset.id, x0: event.clientX, base: plan, result: null, blockerId: null };
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp, { once: true });
+  });
+
+  addButton.addEventListener("click", function () {
+    var added = L.addTask(plan, "Nouvelle tâche");
+    commit(added.plan);
+    editingId = added.id;
+    say("Tâche ajoutée : donnez-lui un nom, puis reliez-la avec son rond.");
+    render();
+  });
+
+  function undo() {
+    if (!undoStack.length || gesture) return;
+    plan = undoStack.pop();
+    editingId = null;
+    say("Dernier geste annulé.");
+    render();
+  }
+
+  undoButton.addEventListener("click", undo);
+  document.addEventListener("keydown", function (event) {
+    var typing = event.target && (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA");
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z" && !typing) {
+      event.preventDefault();
+      undo();
+    }
+  });
+
+  say("");
+  render();
+})();
+</script>
+</body>
+</html>
