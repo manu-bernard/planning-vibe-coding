@@ -38,13 +38,13 @@ docs/
 
 | Module | Rôle | Dépend de |
 | --- | --- | --- |
-| `schedule.js` | Fonctions pures qui prennent un plan et renvoient un nouveau plan : `moveTask`, `resizeTask`, `addTask`, `renameTask`, `removeTask`, `linkTasks`, `unlinkTasks`. `computeSchedule` calcule la fin du projet, la marge de chaque tâche et le chemin critique. | — |
-| `calendar.js` | Convertit un index de jour ouvré en date réelle (lundi à vendredi) et formate les dates en français. | — |
+| `schedule.js` | Fonctions pures qui prennent un plan et renvoient un nouveau plan : `resizeTask`, `addTask`, `renameTask`, `removeTask`, `linkTasks`, `unlinkTasks`. `moveTask` renvoie `{ plan, blockerId }`, où `blockerId` nomme le prédécesseur sur lequel la tâche a buté. `computeSchedule` calcule la fin du projet, la marge de chaque tâche et le chemin critique ; `pushedTasks` liste les tâches qu'un geste a repoussées ; `isAcyclic` vérifie qu'aucun lien ne forme de boucle ; `cleanName` resserre les espaces et limite un nom à 80 caractères. | — |
+| `calendar.js` | `workdayToDate` convertit un index de jour ouvré en date réelle (lundi à vendredi) ; `nextMonday` donne le lundi qui suit une date ; `toIsoDate` et `fromIsoDate` passent d'une date au texte `AAAA-MM-JJ` ; `formatShort` et `formatLong` formatent en français. | — |
 | `history.js` | Pile d'états passés : empiler, annuler, savoir si l'on peut annuler. | — |
-| `storage.js` | Lit le plan sauvegardé et le valide ; donnée absente ou invalide : plan de départ. Écrit le plan. | `default-plan.js` |
-| `default-plan.js` | Construit le plan de départ à partir d'une date de début. | — |
-| `gantt-view.js` | Dessine la frise, les barres, la marge, les liens et la date de fin ; traduit les gestes de souris en appels de `schedule.js` et transmet le nouveau plan. | `schedule.js`, `calendar.js` |
-| `main.js` | Tient le plan courant, reçoit chaque nouveau plan de la vue, l'enregistre dans l'historique et le sauvegarde. | tous |
+| `storage.js` | `parsePlan` valide un texte (version, date, entiers, noms, identifiants uniques, liens vers des tâches existantes, sans doublon ni boucle, liens respectés) et ne garde que les champs connus. `loadPlan(storage, createFallback)` lit le plan ; donnée absente, illisible ou invalide : plan de départ. `savePlan` l'écrit et renvoie `false` si le navigateur refuse. | `schedule.js` |
+| `default-plan.js` | `createDefaultPlan(startDate)` construit le plan de départ à partir du lundi du jour ouvré 0. | — |
+| `gantt-view.js` | `createGanttView(elements, { onChange })` renvoie `{ render, say }`. Dessine les lignes, les barres, la marge, les liens et la date de fin ; traduit les gestes de souris en appels de `schedule.js`. Pendant un geste, elle affiche le plan provisoire et signale les tâches repoussées et le lien qui bloque ; à la fin du geste, elle transmet le nouveau plan à `onChange`. | `schedule.js`, `calendar.js` |
+| `main.js` | Tient le plan courant, reçoit chaque nouveau plan de la vue et le sauvegarde ; prévient si le navigateur refuse d'enregistrer. | tous |
 
 ## Modèle de données
 
