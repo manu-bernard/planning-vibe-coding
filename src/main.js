@@ -1,9 +1,11 @@
-// Point d'entrée : tient le plan courant, le transmet à la vue et le sauvegarde
+// Point d'entrée : tient le plan courant, le transmet à la vue, l'enregistre dans l'historique
+// et le sauvegarde
 
 import { createGanttView } from "./gantt-view.js";
 import { createDefaultPlan } from "./default-plan.js";
 import { loadPlan, savePlan } from "./storage.js";
 import { nextMonday, toIsoDate } from "./calendar.js";
+import { canUndo, createHistory, push, undo } from "./history.js";
 
 // L'accès à localStorage peut lui-même lever une erreur (site bloqué, navigation privée stricte)
 function browserStorage() {
@@ -16,7 +18,9 @@ function browserStorage() {
 
 const storage = browserStorage();
 const createFreshPlan = () => createDefaultPlan(toIsoDate(nextMonday(new Date())));
+const undoButton = document.getElementById("undo");
 let plan = loadPlan(storage, createFreshPlan);
+let history = createHistory();
 
 const view = createGanttView(
   {
@@ -30,14 +34,38 @@ const view = createGanttView(
   { onChange: applyPlan }
 );
 
-function applyPlan(next) {
+function show(next) {
   plan = next;
   if (!storage || !savePlan(storage, plan)) {
     view.say("Le navigateur refuse d'enregistrer : ce planning sera perdu à la fermeture de la page.");
   }
+  undoButton.disabled = !canUndo(history);
   view.render(plan);
 }
 
+function applyPlan(next) {
+  history = push(history, plan, next);
+  show(next);
+}
+
+function undoLastChange() {
+  const undone = undo(history);
+  if (!undone) return;
+  history = undone.history;
+  view.say("Dernier geste annulé.");
+  show(undone.state);
+}
+
+undoButton.addEventListener("click", undoLastChange);
+
+// Cmd+Z / Ctrl+Z annule, sauf dans un champ de saisie où il garde son rôle
+document.addEventListener("keydown", (event) => {
+  const typing = event.target instanceof HTMLInputElement;
+  const isUndo = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "z";
+  if (!isUndo || typing) return;
+  event.preventDefault();
+  undoLastChange();
+});
+
 // Enregistré dès l'ouverture : la date de début du projet reste celle de la première visite
-savePlan(storage, plan);
-view.render(plan);
+show(plan);
