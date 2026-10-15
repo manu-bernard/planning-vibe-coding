@@ -27,6 +27,7 @@ tests/
   calendar.test.js
   history.test.js
   storage.test.js
+  default-plan.test.js
 docs/
   specifications.md
   architecture.md
