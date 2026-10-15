@@ -66,6 +66,14 @@ docs/
 - Le graphe des liens est sans cycle ; `linkTasks` refuse un lien qui en créerait un.
 - `computeSchedule` renvoie, sans modifier le plan : `end` (fin du projet), et pour chaque tâche `slack` (marge en jours) et `critical` (marge nulle).
 
+## Sécurité et robustesse
+
+- Tout texte venu de l'utilisateur (noms de tâches) est inséré par `textContent` ou par des attributs ; aucun `innerHTML` dans l'application.
+- Toute lecture du `localStorage` passe par `parsePlan` : seules les données conformes au modèle sont gardées, sinon le plan de départ est chargé. L'accès au `localStorage` lui-même est protégé, il peut lever une erreur dans un navigateur bloqué.
+- Une écriture refusée par le navigateur (stockage plein ou bloqué) affiche un message qui prévient que le planning sera perdu à la fermeture.
+- Les noms sont nettoyés (espaces) et limités à 80 caractères, à la saisie comme à la lecture.
+- Aucun serveur, aucun compte, aucune dépendance : rien ne quitte le navigateur.
+
 ## Rendu
 
 - Une colonne par jour ouvré, une ligne par tâche ; en-tête par semaine avec la date du lundi.
