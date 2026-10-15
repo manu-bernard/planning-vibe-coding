@@ -5,12 +5,15 @@ import {
   computeSchedule,
   earliestStart,
   findTask,
+  isAcyclic,
+  linkTasks,
   MAX_NAME_LENGTH,
   moveTask,
   pushedTasks,
   removeTask,
   renameTask,
   resizeTask,
+  unlinkTasks,
 } from "../src/schedule.js";
 import { createDefaultPlan } from "../src/default-plan.js";
 
@@ -154,4 +157,46 @@ test("supprimer une tâche retire ses liens et laisse les autres en place", () =
   assert.deepEqual(plan.tasks.map((task) => task.start), [0, 3, 18, 22, 24, 27]);
   assert.equal(computeSchedule(plan).critical.t2, false);
   assert.equal(base.tasks.length, 7);
+});
+
+test("relier deux tâches repousse la tâche cible si besoin", () => {
+  const added = addTask(createDefaultPlan(START), "Maquettes");
+  const { plan } = linkTasks(added.plan, "t1", added.id);
+  assert.equal(findTask(plan, added.id).start, 3);
+  assert.deepEqual(plan.links.at(-1), { from: "t1", to: added.id });
+  const schedule = computeSchedule(plan);
+  assert.equal(schedule.critical[added.id], false);
+  assert.equal(schedule.slack[added.id], 24);
+});
+
+test("relier vers une tâche déjà plus tardive ne la déplace pas", () => {
+  const { plan } = linkTasks(createDefaultPlan(START), "t1", "t5");
+  assert.equal(findTask(plan, "t5").start, 22);
+});
+
+test("un lien qui fermerait une boucle est refusé, directe ou indirecte", () => {
+  const base = createDefaultPlan(START);
+  assert.deepEqual(linkTasks(base, "t2", "t1"), { error: "cycle" });
+  assert.deepEqual(linkTasks(base, "t7", "t1"), { error: "cycle" });
+});
+
+test("un lien en double ou vers soi-même est refusé", () => {
+  const base = createDefaultPlan(START);
+  assert.deepEqual(linkTasks(base, "t1", "t2"), { error: "exists" });
+  assert.deepEqual(linkTasks(base, "t3", "t3"), { error: "self" });
+});
+
+test("retirer un lien laisse les tâches en place", () => {
+  const base = createDefaultPlan(START);
+  const plan = unlinkTasks(base, "t3", "t4");
+  assert.equal(plan.links.length, 5);
+  assert.deepEqual(starts(plan), starts(base));
+  assert.equal(base.links.length, 6);
+});
+
+test("un plan relié par linkTasks reste sans boucle", () => {
+  let plan = createDefaultPlan(START);
+  plan = linkTasks(plan, "t1", "t4").plan;
+  plan = linkTasks(plan, "t2", "t6").plan;
+  assert.equal(isAcyclic(plan), true);
 });

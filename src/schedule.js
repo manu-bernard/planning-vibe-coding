@@ -135,6 +135,37 @@ export function removeTask(plan, id) {
   return next;
 }
 
+// Vrai si l'on peut aller de fromId à targetId en suivant les liens
+function reaches(plan, fromId, targetId) {
+  const stack = [fromId];
+  const seen = new Set();
+  while (stack.length > 0) {
+    const id = stack.pop();
+    if (id === targetId) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    for (const link of plan.links) if (link.from === id) stack.push(link.to);
+  }
+  return false;
+}
+
+// Renvoie { plan } ou { error } : "self", "exists" ou "cycle"
+export function linkTasks(plan, fromId, toId) {
+  if (fromId === toId) return { error: "self" };
+  if (plan.links.some((link) => link.from === fromId && link.to === toId)) return { error: "exists" };
+  if (reaches(plan, toId, fromId)) return { error: "cycle" };
+  const next = structuredClone(plan);
+  next.links.push({ from: fromId, to: toId });
+  return { plan: propagate(next) };
+}
+
+// Retire le lien ; les tâches restent en place
+export function unlinkTasks(plan, fromId, toId) {
+  const next = structuredClone(plan);
+  next.links = next.links.filter((link) => !(link.from === fromId && link.to === toId));
+  return next;
+}
+
 // Tâches qu'un geste a repoussées, hors la tâche manipulée
 export function pushedTasks(before, after, exceptId) {
   return after.tasks

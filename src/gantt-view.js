@@ -5,6 +5,7 @@ import {
   addTask,
   computeSchedule,
   findTask,
+  linkTasks,
   MAX_NAME_LENGTH,
   moveTask,
   pushedTasks,
@@ -12,6 +13,7 @@ import {
   renameTask,
   resizeTask,
   taskEnd,
+  unlinkTasks,
 } from "./schedule.js";
 import { formatLong, formatShort, fromIsoDate, workdayToDate } from "./calendar.js";
 
@@ -22,7 +24,13 @@ const BAR_HEIGHT = 26;
 const FOOTER_HEIGHT = 28;
 const DAY_LETTERS = ["L", "M", "M", "J", "V"];
 const SVG_NS = "http://www.w3.org/2000/svg";
-const HINT = "Glissez une barre pour la déplacer, son bord droit pour l'étirer. Un clic sur un nom le renomme.";
+const HINT =
+  "Glissez une barre pour la déplacer, son bord droit pour l'étirer, son rond pour la relier à une autre tâche. " +
+  "Un clic sur un lien le retire, un clic sur un nom le renomme.";
+const LINK_ERRORS = {
+  cycle: "Lien refusé : il créerait une boucle, le planning deviendrait impossible à calculer.",
+  exists: "Ces deux tâches sont déjà reliées.",
+};
 
 function createElement(tag, className, text) {
   const node = document.createElement(tag);
@@ -208,7 +216,24 @@ export function createGanttView(elements, { onChange }) {
         taskEnd(from) * DAY_WIDTH - 2, rowCenter(rowOf.get(from.id)),
         to.start * DAY_WIDTH + 2, rowCenter(rowOf.get(to.id))
       );
-      svg.append(createSvgElement("path", { class: isBlocker ? "link blocker" : "link", d: path }));
+      // Tracé large et invisible pour viser le lien facilement ; il précède le lien visible
+      const hit = createSvgElement("path", { class: "link-hit", d: path });
+      const title = createSvgElement("title", {});
+      title.textContent = `Retirer le lien ${from.name} → ${to.name}`;
+      hit.append(title);
+      hit.addEventListener("click", () => {
+        say(`Lien retiré : ${nameOf(plan, link.to)} n'attend plus ${nameOf(plan, link.from)}.`);
+        onChange(unlinkTasks(plan, link.from, link.to));
+      });
+      svg.append(hit, createSvgElement("path", { class: isBlocker ? "link blocker" : "link", d: path }));
+    }
+    if (info.linking) {
+      const source = findTask(view, info.linking.fromId);
+      const path = linkPath(
+        taskEnd(source) * DAY_WIDTH + 10, rowCenter(rowOf.get(source.id)),
+        info.linking.x, info.linking.y
+      );
+      svg.append(createSvgElement("path", { class: "link pending", d: path }));
     }
     return svg;
   }
@@ -227,6 +252,7 @@ export function createGanttView(elements, { onChange }) {
     if (schedule.critical[task.id]) classes.push("critical");
     if (info.activeId === task.id) classes.push("active");
     if (info.pushed && info.pushed.includes(task.id)) classes.push("pushed");
+    if (info.targetId === task.id) classes.push("target");
     const bar = createElement("div", classes.join(" "));
     bar.dataset.id = task.id;
     bar.title = task.name;
@@ -235,7 +261,9 @@ export function createGanttView(elements, { onChange }) {
     bar.append(createElement("span", "duration", `${task.duration} j`));
     const handle = createElement("div", "handle");
     handle.title = "Étirer pour changer la durée";
-    bar.append(handle);
+    const dot = createElement("div", "dot");
+    dot.title = "Glisser vers une autre tâche pour les relier";
+    bar.append(handle, dot);
     return bar;
   }
 
@@ -271,7 +299,48 @@ export function createGanttView(elements, { onChange }) {
     elements.timeline.replaceChildren(...nodes);
   }
 
+  function barAt(x, y) {
+    const target = document.elementFromPoint(x, y);
+    const bar = target ? target.closest(".bar") : null;
+    return bar ? bar.dataset.id : null;
+  }
+
+  function onLinkMove(event) {
+    const box = elements.timeline.getBoundingClientRect();
+    const hovered = barAt(event.clientX, event.clientY);
+    const targetId = hovered && hovered !== gesture.id ? hovered : null;
+    draw(plan, {
+      linking: { fromId: gesture.id, x: event.clientX - box.left, y: event.clientY - box.top },
+      targetId,
+    });
+    say(targetId
+      ? `Relâchez pour que ${nameOf(plan, targetId)} attende la fin de ${nameOf(plan, gesture.id)}.`
+      : `Glissez jusqu'à la tâche qui doit attendre la fin de ${nameOf(plan, gesture.id)}.`);
+  }
+
+  function finishLink(fromId, event) {
+    const targetId = barAt(event.clientX, event.clientY);
+    if (!targetId || targetId === fromId) {
+      say("");
+      draw(plan);
+      return;
+    }
+    const linked = linkTasks(plan, fromId, targetId);
+    if (linked.error) {
+      say(LINK_ERRORS[linked.error]);
+      draw(plan);
+      return;
+    }
+    const effect = describeEffect(plan, linked.plan, fromId, null);
+    say(`Lien ajouté : ${nameOf(plan, targetId)} attend la fin de ${nameOf(plan, fromId)}. ${effect}`);
+    onChange(linked.plan);
+  }
+
   function onPointerMove(event) {
+    if (gesture.kind === "link") {
+      onLinkMove(event);
+      return;
+    }
     const days = Math.round((event.clientX - gesture.startX) / DAY_WIDTH);
     const task = findTask(gesture.base, gesture.id);
     if (gesture.kind === "move") {
@@ -289,10 +358,14 @@ export function createGanttView(elements, { onChange }) {
     say(describeEffect(gesture.base, gesture.result, gesture.id, gesture.blockerId) || " ");
   }
 
-  function onPointerUp() {
+  function onPointerUp(event) {
     document.removeEventListener("pointermove", onPointerMove);
     const done = gesture;
     gesture = null;
+    if (done.kind === "link") {
+      finishLink(done.id, event);
+      return;
+    }
     const changed = done.result && JSON.stringify(done.result) !== JSON.stringify(done.base);
     if (changed) {
       say(describeEffect(done.base, done.result, done.id, null));
@@ -308,8 +381,11 @@ export function createGanttView(elements, { onChange }) {
     const bar = event.target.closest(".bar");
     if (!bar) return;
     event.preventDefault();
+    let kind = "move";
+    if (event.target.closest(".dot")) kind = "link";
+    else if (event.target.closest(".handle")) kind = "resize";
     gesture = {
-      kind: event.target.closest(".handle") ? "resize" : "move",
+      kind,
       id: bar.dataset.id,
       startX: event.clientX,
       base: plan,

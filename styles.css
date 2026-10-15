@@ -99,6 +99,9 @@ button { font: inherit; color: inherit; }
 svg.links { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .link { fill: none; stroke: var(--link); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 2 7; animation: flow 1s linear infinite; }
 .link.blocker { stroke: var(--ink); stroke-dasharray: none; stroke-width: 3.5; animation: none; }
+.link.pending { stroke: var(--ink); }
+.link-hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.link-hit:hover + .link { stroke: var(--ink); }
 @keyframes flow { to { stroke-dashoffset: -9; } }
 @media (prefers-reduced-motion: reduce) { .link { animation: none; } }
 
@@ -111,6 +114,9 @@ svg.links { position: absolute; inset: 0; pointer-events: none; overflow: visibl
 .bar.critical:hover { background: var(--critical-hover); }
 .bar.active { cursor: grabbing; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
 .bar.pushed { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-soft); }
+.bar.target { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.dot { position: absolute; right: -17px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--link); cursor: crosshair; transition: border-color .15s, background-color .15s; }
+.dot:hover { border-color: var(--ink); background: var(--ink); }
 .duration { pointer-events: none; overflow: hidden; white-space: nowrap; }
 .handle { position: absolute; top: 0; right: 0; width: 10px; height: 100%; cursor: ew-resize; border-radius: 0 5px 5px 0; }
 .handle::after { content: ""; position: absolute; top: 7px; bottom: 7px; right: 3px; width: 2px; border-radius: 1px; background: rgba(255, 255, 255, 0.7); }
