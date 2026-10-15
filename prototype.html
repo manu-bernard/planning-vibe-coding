@@ -431,7 +431,7 @@ var PlanningLogic = (function () {
     if (schedule.end > 0) {
       endDateEl.textContent = LONG_DATE.format(L.workdayToDate(startDate, schedule.end - 1));
       var criticalCount = view.tasks.filter(function (task) { return schedule.critical[task.id]; }).length;
-      endSummaryEl.textContent = plural(schedule.end, "jour ouvré") + " · " + criticalCount + " sur " + plural(view.tasks.length, "tâche") + " critiques";
+      endSummaryEl.textContent = schedule.end + (schedule.end > 1 ? " jours ouvrés" : " jour ouvré") + " · " + criticalCount + " sur " + plural(view.tasks.length, "tâche") + " critiques";
     } else {
       endDateEl.textContent = "aucune tâche";
       endSummaryEl.textContent = "";
@@ -444,6 +444,7 @@ var PlanningLogic = (function () {
     head.style.height = HEAD_H + "px";
     head.appendChild(el("span", "label", "Tâche"));
     namesEl.appendChild(head);
+    var editingInput = null;
     view.tasks.forEach(function (task) {
       var row = el("div", "name-row");
       row.style.height = ROW_H + "px";
@@ -456,9 +457,11 @@ var PlanningLogic = (function () {
           if (event.key === "Enter") finishRename(task.id, input.value);
           if (event.key === "Escape") finishRename(task.id, null);
         });
-        input.addEventListener("blur", function () { finishRename(task.id, input.value); });
+        input.addEventListener("blur", function () {
+          if (input.isConnected) finishRename(task.id, input.value);
+        });
         row.appendChild(input);
-        setTimeout(function () { input.focus(); input.select(); }, 0);
+        editingInput = input;
       } else {
         var name = el("button", "name", task.name);
         name.type = "button";
@@ -479,11 +482,15 @@ var PlanningLogic = (function () {
       row.appendChild(del);
       namesEl.appendChild(row);
     });
+    if (editingInput) {
+      editingInput.focus();
+      editingInput.select();
+    }
 
     // Frise
     timelineEl.replaceChildren();
     timelineEl.style.width = (columns * DAY_W + 24) + "px";
-    timelineEl.style.height = height + "px";
+    timelineEl.style.height = (height + 28) + "px";
     for (var week = 0; week < weeks; week += 1) {
       var weekEl = el("div", "week", SHORT_DATE.format(L.workdayToDate(startDate, week * 5)));
       weekEl.style.left = (week * 5 * DAY_W) + "px";
@@ -583,6 +590,7 @@ var PlanningLogic = (function () {
     if (schedule.end > 0) {
       var tag = el("div", "end-tag", "Fin");
       tag.style.left = (schedule.end * DAY_W + 4) + "px";
+      tag.style.top = (height + 6) + "px";
       timelineEl.appendChild(tag);
     }
   }
