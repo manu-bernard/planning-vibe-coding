@@ -68,7 +68,7 @@ docs/
 ## Rendu
 
 - Une colonne par jour ouvré, une ligne par tâche ; en-tête par semaine avec la date du lundi.
-- Couleurs : le vermillon `#E0542B` code une seule chose, le chemin critique ; les autres barres sont en encre `#211C17` atténuée ; la marge est un trait clair derrière la barre.
+- Couleurs : le bleu `#2B5FD9` code une seule chose, le chemin critique ; les autres barres sont en encre `#211C17` atténuée ; la marge est un trait clair derrière la barre.
 - Liens : gris, épais, pointillé animé dans le sens du flux, sans flèche.
 - Aucun élément ne pivote ni ne se déplace au survol ; le survol ne change que la couleur.
 

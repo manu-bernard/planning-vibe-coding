@@ -12,5 +12,5 @@
 | Priorité : ajouter, renommer, supprimer et relier avant annuler | Choix de l'équipe : sans eux, on ne fait que déplacer les sept étapes. |
 | Liens fin-début uniquement | C'est le lien des étapes enchaînées du brief ; il suffit à expliquer le chemin critique. |
 | Lien qui créerait une boucle : refusé | Une boucle rend le planning impossible à calculer. |
-| Vermillon réservé au chemin critique | La couleur porte un seul sens : « ce retard repousse la fin ». |
+| Bleu réservé au chemin critique | Choix de l'équipe ; la couleur porte un seul sens : « ce retard repousse la fin ». |
 | Rétablir (redo) coupé | Le brief demande d'annuler une erreur ; rétablir n'apporte presque rien à la démo. |

@@ -30,7 +30,7 @@ Total : 30 jours ouvrés, soit six semaines. Au départ, les sept étapes sont t
 2. **Déplacer une barre** à la souris : la tâche change de date de début. Une barre tirée avant la fin de l'un de ses prédécesseurs s'arrête à cette fin.
 3. **Étirer une barre** par son bord droit : la tâche change de durée (un jour au minimum).
 4. **Dépendances fin-début** : une tâche commence au plus tôt à la fin de chacun de ses prédécesseurs. Quand une tâche se termine plus tard, ses successeurs sont repoussés juste ce qu'il faut. Quand elle avance ou raccourcit, ses successeurs restent en place et l'écart devient une marge. Les tâches repoussées par un geste sont signalées pendant ce geste.
-5. **Chemin critique** : les tâches sans marge sont en vermillon ; la marge des autres tâches est dessinée derrière leur barre.
+5. **Chemin critique** : les tâches sans marge sont en bleu ; la marge des autres tâches est dessinée derrière leur barre.
 6. **Ajouter, renommer, supprimer** une tâche.
 7. **Relier deux tâches** en glissant d'une barre vers une autre ; un lien qui créerait une boucle est refusé ; un clic sur un lien le retire.
 8. **Annuler** le dernier geste (bouton et Ctrl+Z / Cmd+Z), sur plusieurs niveaux.
@@ -53,7 +53,7 @@ Ordre de priorité si le temps manque : le cœur (1 à 5 et 9), puis la construc
 
 ## Scénario principal
 
-1. L'étudiant ouvre la page : les sept étapes s'enchaînent sur six semaines, toutes en vermillon (critiques).
+1. L'étudiant ouvre la page : les sept étapes s'enchaînent sur six semaines, toutes en bleu (critiques).
 2. Il étire « Développement itératif encadré » de trois jours : les quatre étapes suivantes reculent, la date de fin aussi.
 3. Il ajoute « Maquettes », la relie après « Outils et périmètre technique » : la tâche apparaît en gris avec sa marge, elle n'est pas critique.
 4. Il retire le lien entre « Développement » et « Tests », relie « Tests » après « Prototypage », puis tire « Tests » vers la gauche : la barre s'arrête à la fin du prototypage, les tests courent en parallèle du développement.
