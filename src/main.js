@@ -25,6 +25,7 @@ const view = createGanttView(
     message: document.getElementById("message"),
     endDate: document.getElementById("end-date"),
     endSummary: document.getElementById("end-summary"),
+    addButton: document.getElementById("add"),
   },
   { onChange: applyPlan }
 );
