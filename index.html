@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planning vibe coding</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="src/main.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div>
+        <h1>Planning vibe coding</h1>
+        <p class="sub">Votre planning est enregistré dans ce navigateur</p>
+      </div>
+      <div class="end">
+        <span class="label">Fin du projet</span>
+        <strong id="end-date"></strong>
+        <span id="end-summary"></span>
+      </div>
+      <div class="actions" id="actions"></div>
+    </header>
+
+    <p id="message" class="hint" role="status"></p>
+
+    <div class="board">
+      <div class="names" id="names"></div>
+      <div class="scroller"><div class="timeline" id="timeline"></div></div>
+    </div>
+
+    <p class="legend">
+      <span><i class="swatch critical"></i>Chemin critique : le moindre retard repousse la fin</span>
+      <span><i class="swatch task"></i>Tâche avec de la marge</span>
+      <span><i class="swatch slack"></i>Marge</span>
+      <span><i class="swatch link"></i>Lien : la tâche suivante attend la fin de la précédente</span>
+    </p>
+  </div>
+</body>
+</html>

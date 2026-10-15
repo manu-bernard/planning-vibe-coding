@@ -1,0 +1,259 @@
+// Rendu de la frise et gestes à la souris.
+// La vue ne détient que le geste en cours ; chaque nouveau plan part vers onChange.
+
+import { computeSchedule, findTask, moveTask, pushedTasks, resizeTask, taskEnd } from "./schedule.js";
+import { formatLong, formatShort, fromIsoDate, workdayToDate } from "./calendar.js";
+
+const DAY_WIDTH = 30;
+const ROW_HEIGHT = 46;
+const HEADER_HEIGHT = 48;
+const BAR_HEIGHT = 26;
+const FOOTER_HEIGHT = 28;
+const DAY_LETTERS = ["L", "M", "M", "J", "V"];
+const SVG_NS = "http://www.w3.org/2000/svg";
+const HINT = "Glissez une barre pour la déplacer, son bord droit pour l'étirer.";
+
+function createElement(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function createSvgElement(tag, attributes) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
+  return node;
+}
+
+function plural(count, word) {
+  return `${count} ${word}${count > 1 ? "s" : ""}`;
+}
+
+function linkPath(x1, y1, x2, y2) {
+  const bend = Math.max(14, Math.abs(x2 - x1) / 2);
+  return `M${x1} ${y1} C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
+}
+
+function rowCenter(row) {
+  return HEADER_HEIGHT + row * ROW_HEIGHT + ROW_HEIGHT / 2;
+}
+
+function placeBox(node, left, top, width, height) {
+  node.style.left = `${left}px`;
+  node.style.top = `${top}px`;
+  if (width !== undefined) node.style.width = `${width}px`;
+  if (height !== undefined) node.style.height = `${height}px`;
+}
+
+export function createGanttView(elements, { onChange }) {
+  let plan = null;
+  let gesture = null;
+
+  function nameOf(view, id) {
+    const task = findTask(view, id);
+    return task ? `« ${task.name} »` : "";
+  }
+
+  function say(text) {
+    elements.message.textContent = text || HINT;
+    elements.message.classList.toggle("hint", !text);
+  }
+
+  function describeEffect(before, after, movedId, blockerId) {
+    const parts = [];
+    if (blockerId) parts.push(`${nameOf(after, movedId)} bute sur la fin de ${nameOf(after, blockerId)}.`);
+    const pushed = pushedTasks(before, after, movedId);
+    if (pushed.length > 0) parts.push(`Repoussées : ${pushed.map((id) => nameOf(after, id)).join(", ")}.`);
+    const oldEnd = computeSchedule(before).end;
+    const newEnd = computeSchedule(after).end;
+    if (newEnd !== oldEnd) parts.push(`La fin du projet passe de ${plural(oldEnd, "jour")} à ${plural(newEnd, "jour")}.`);
+    return parts.join(" ");
+  }
+
+  function drawSummary(view, schedule) {
+    if (schedule.end === 0) {
+      elements.endDate.textContent = "aucune tâche";
+      elements.endSummary.textContent = "";
+      return;
+    }
+    const startDate = fromIsoDate(view.startDate);
+    elements.endDate.textContent = formatLong(workdayToDate(startDate, schedule.end - 1));
+    const criticalCount = view.tasks.filter((task) => schedule.critical[task.id]).length;
+    const days = schedule.end > 1 ? "jours ouvrés" : "jour ouvré";
+    elements.endSummary.textContent =
+      `${schedule.end} ${days} · ${criticalCount} sur ${plural(view.tasks.length, "tâche")} critiques`;
+  }
+
+  function drawNames(view) {
+    const head = createElement("div", "names-head");
+    head.style.height = `${HEADER_HEIGHT}px`;
+    head.append(createElement("span", "label", "Tâche"));
+    const rows = view.tasks.map((task) => {
+      const row = createElement("div", "name-row");
+      row.style.height = `${ROW_HEIGHT}px`;
+      row.append(createElement("span", "name", task.name));
+      return row;
+    });
+    elements.names.replaceChildren(head, ...rows);
+  }
+
+  function drawHeader(view, weeks) {
+    const startDate = fromIsoDate(view.startDate);
+    const nodes = [];
+    for (let week = 0; week < weeks; week += 1) {
+      const label = createElement("div", "week", formatShort(workdayToDate(startDate, week * 5)));
+      placeBox(label, week * 5 * DAY_WIDTH, 8, 5 * DAY_WIDTH);
+      nodes.push(label);
+    }
+    for (let day = 0; day < weeks * 5; day += 1) {
+      const letter = createElement("div", "day", DAY_LETTERS[day % 5]);
+      placeBox(letter, day * DAY_WIDTH, 30, DAY_WIDTH);
+      nodes.push(letter);
+    }
+    return nodes;
+  }
+
+  function drawRows(view) {
+    const rows = createElement("div", "rows");
+    rows.style.top = `${HEADER_HEIGHT}px`;
+    rows.style.height = `${view.tasks.length * ROW_HEIGHT}px`;
+    rows.style.backgroundSize = `${5 * DAY_WIDTH}px 100%, ${DAY_WIDTH}px 100%`;
+    view.tasks.forEach((task, index) => {
+      const line = createElement("div", "row-line");
+      line.style.top = `${(index + 1) * ROW_HEIGHT - 1}px`;
+      rows.append(line);
+    });
+    return rows;
+  }
+
+  function drawLinks(view, rowOf, width, height, info) {
+    const svg = createSvgElement("svg", { class: "links", width, height });
+    for (const link of view.links) {
+      const from = findTask(view, link.from);
+      const to = findTask(view, link.to);
+      const isBlocker = info.blocker && info.blocker.from === link.from && info.blocker.to === link.to;
+      const path = linkPath(
+        taskEnd(from) * DAY_WIDTH - 2, rowCenter(rowOf.get(from.id)),
+        to.start * DAY_WIDTH + 2, rowCenter(rowOf.get(to.id))
+      );
+      svg.append(createSvgElement("path", { class: isBlocker ? "link blocker" : "link", d: path }));
+    }
+    return svg;
+  }
+
+  function drawSlack(task, row, slack) {
+    const top = HEADER_HEIGHT + row * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2;
+    const bar = createElement("div", "slack");
+    placeBox(bar, taskEnd(task) * DAY_WIDTH, top + BAR_HEIGHT / 2 - 4, slack * DAY_WIDTH);
+    const label = createElement("div", "slack-label", `marge ${slack} j`);
+    placeBox(label, taskEnd(task) * DAY_WIDTH + 22, top + BAR_HEIGHT / 2 + 7);
+    return [bar, label];
+  }
+
+  function drawBar(task, row, schedule, info) {
+    const classes = ["bar"];
+    if (schedule.critical[task.id]) classes.push("critical");
+    if (info.activeId === task.id) classes.push("active");
+    if (info.pushed && info.pushed.includes(task.id)) classes.push("pushed");
+    const bar = createElement("div", classes.join(" "));
+    bar.dataset.id = task.id;
+    bar.title = task.name;
+    const top = HEADER_HEIGHT + row * ROW_HEIGHT + (ROW_HEIGHT - BAR_HEIGHT) / 2;
+    placeBox(bar, task.start * DAY_WIDTH + 2, top, task.duration * DAY_WIDTH - 4, BAR_HEIGHT);
+    bar.append(createElement("span", "duration", `${task.duration} j`));
+    const handle = createElement("div", "handle");
+    handle.title = "Étirer pour changer la durée";
+    bar.append(handle);
+    return bar;
+  }
+
+  function draw(view, info = {}) {
+    const schedule = computeSchedule(view);
+    const weeks = Math.max(6, Math.ceil((schedule.end + 6) / 5));
+    const width = weeks * 5 * DAY_WIDTH + 24;
+    const rowsHeight = HEADER_HEIGHT + view.tasks.length * ROW_HEIGHT;
+    const rowOf = new Map(view.tasks.map((task, index) => [task.id, index]));
+
+    drawSummary(view, schedule);
+    drawNames(view);
+
+    const nodes = [...drawHeader(view, weeks), drawRows(view)];
+    if (schedule.end > 0) {
+      const endLine = createElement("div", "end-line");
+      endLine.style.left = `${schedule.end * DAY_WIDTH - 1}px`;
+      nodes.push(endLine);
+    }
+    nodes.push(drawLinks(view, rowOf, width, rowsHeight, info));
+    view.tasks.forEach((task, row) => {
+      const slack = schedule.slack[task.id];
+      if (slack > 0) nodes.push(...drawSlack(task, row, slack));
+      nodes.push(drawBar(task, row, schedule, info));
+    });
+    if (schedule.end > 0) {
+      const tag = createElement("div", "end-tag", "Fin");
+      placeBox(tag, schedule.end * DAY_WIDTH + 4, rowsHeight + 6);
+      nodes.push(tag);
+    }
+    elements.timeline.style.width = `${width}px`;
+    elements.timeline.style.height = `${rowsHeight + FOOTER_HEIGHT}px`;
+    elements.timeline.replaceChildren(...nodes);
+  }
+
+  function onPointerMove(event) {
+    const days = Math.round((event.clientX - gesture.startX) / DAY_WIDTH);
+    const task = findTask(gesture.base, gesture.id);
+    if (gesture.kind === "move") {
+      const moved = moveTask(gesture.base, gesture.id, task.start + days);
+      gesture.result = moved.plan;
+      gesture.blockerId = moved.blockerId;
+    } else {
+      gesture.result = resizeTask(gesture.base, gesture.id, task.duration + days);
+    }
+    draw(gesture.result, {
+      activeId: gesture.id,
+      pushed: pushedTasks(gesture.base, gesture.result, gesture.id),
+      blocker: gesture.blockerId ? { from: gesture.blockerId, to: gesture.id } : null,
+    });
+    say(describeEffect(gesture.base, gesture.result, gesture.id, gesture.blockerId) || " ");
+  }
+
+  function onPointerUp() {
+    document.removeEventListener("pointermove", onPointerMove);
+    const done = gesture;
+    gesture = null;
+    const changed = done.result && JSON.stringify(done.result) !== JSON.stringify(done.base);
+    if (changed) {
+      say(describeEffect(done.base, done.result, done.id, null));
+      onChange(done.result);
+    } else {
+      say("");
+      draw(plan);
+    }
+  }
+
+  elements.timeline.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || gesture) return;
+    const bar = event.target.closest(".bar");
+    if (!bar) return;
+    event.preventDefault();
+    gesture = {
+      kind: event.target.closest(".handle") ? "resize" : "move",
+      id: bar.dataset.id,
+      startX: event.clientX,
+      base: plan,
+      result: null,
+      blockerId: null,
+    };
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp, { once: true });
+  });
+
+  function render(nextPlan) {
+    plan = nextPlan;
+    draw(plan);
+  }
+
+  say("");
+  return { render, say };
+}

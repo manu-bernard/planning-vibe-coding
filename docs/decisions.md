@@ -10,6 +10,9 @@
 | Une tâche qui avance ou raccourcit laisse ses successeurs en place | Choix de l'équipe : le placement fait à la main est respecté ; l'écart devient une marge visible ; seuls les retards se propagent. |
 | Planning de départ : les sept étapes enchaînées | Choix de l'équipe, fidèle au brief ; le chemin critique se révèle dès qu'une tâche passe en parallèle. |
 | Priorité : ajouter, renommer, supprimer et relier avant annuler | Choix de l'équipe : sans eux, on ne fait que déplacer les sept étapes. |
+| Plan sauvegardé invalide : remplacé en entier par le plan de départ, sans réparation partielle | Seule l'application écrit ce plan ; une donnée incohérente vient d'une manipulation extérieure, et une réparation partielle produirait un planning trompeur. |
+| Plan enregistré dès la première ouverture | La date de début du projet reste celle de la première visite, même en revenant une autre semaine. |
+| La vue ne détient que le geste en cours ; le plan appartient à `main.js` | Un seul endroit change le plan, ce qui rend la sauvegarde et l'annulation simples à brancher. |
 | Liens fin-début uniquement | C'est le lien des étapes enchaînées du brief ; il suffit à expliquer le chemin critique. |
 | Lien qui créerait une boucle : refusé | Une boucle rend le planning impossible à calculer. |
 | Bleu réservé au chemin critique | Choix de l'équipe ; la couleur porte un seul sens : « ce retard repousse la fin ». |

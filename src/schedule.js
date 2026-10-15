@@ -1,6 +1,13 @@
 // Planification : fonctions pures qui prennent un plan et renvoient un nouveau plan.
 // Le temps est compté en jours ouvrés entiers ; la fin d'une tâche est exclusive.
 
+export const MAX_NAME_LENGTH = 80;
+
+// Espaces resserrés, longueur bornée ; un nom vide reste vide
+export function cleanName(name) {
+  return String(name).replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
+}
+
 export function findTask(plan, id) {
   return plan.tasks.find((task) => task.id === id);
 }
@@ -27,6 +34,11 @@ function topoOrder(plan) {
     }
   }
   return order;
+}
+
+// Vrai si les liens ne forment aucune boucle ; ils doivent viser des tâches existantes
+export function isAcyclic(plan) {
+  return topoOrder(plan).length === plan.tasks.length;
 }
 
 // Début au plus tôt : la fin du prédécesseur le plus tardif
