@@ -58,6 +58,12 @@ function undoLastChange() {
 
 undoButton.addEventListener("click", undoLastChange);
 
+// Le projet garde sa date de début ; le geste s'annule comme les autres
+document.getElementById("reset").addEventListener("click", () => {
+  view.say("Planning de départ rétabli. « Annuler » revient au planning d'avant.");
+  applyPlan(createDefaultPlan(plan.startDate));
+});
+
 // Cmd+Z / Ctrl+Z annule, sauf dans un champ de saisie où il garde son rôle
 document.addEventListener("keydown", (event) => {
   const typing = event.target instanceof HTMLInputElement;
