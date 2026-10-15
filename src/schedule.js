@@ -99,6 +99,42 @@ export function computeSchedule(plan) {
   return { end, slack, critical };
 }
 
+export const NEW_TASK_DURATION = 3;
+
+// Identifiant libre : t suivi du plus grand numéro existant plus un
+function nextTaskId(plan) {
+  const numbers = plan.tasks
+    .map((task) => /^t(\d+)$/.exec(task.id))
+    .filter(Boolean)
+    .map((match) => Number(match[1]));
+  return `t${Math.max(0, ...numbers) + 1}`;
+}
+
+// Renvoie { plan, id } ; la nouvelle tâche commence au jour 0, sans lien
+export function addTask(plan, name) {
+  const next = structuredClone(plan);
+  const id = nextTaskId(next);
+  next.tasks.push({ id, name: cleanName(name) || "Nouvelle tâche", start: 0, duration: NEW_TASK_DURATION });
+  return { plan: next, id };
+}
+
+// Un nom vide après nettoyage laisse le plan inchangé
+export function renameTask(plan, id, name) {
+  const cleaned = cleanName(name);
+  if (!cleaned) return plan;
+  const next = structuredClone(plan);
+  findTask(next, id).name = cleaned;
+  return next;
+}
+
+// Retire la tâche et ses liens ; les autres tâches restent en place
+export function removeTask(plan, id) {
+  const next = structuredClone(plan);
+  next.tasks = next.tasks.filter((task) => task.id !== id);
+  next.links = next.links.filter((link) => link.from !== id && link.to !== id);
+  return next;
+}
+
 // Tâches qu'un geste a repoussées, hors la tâche manipulée
 export function pushedTasks(before, after, exceptId) {
   return after.tasks

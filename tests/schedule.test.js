@@ -1,11 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  addTask,
   computeSchedule,
   earliestStart,
   findTask,
+  MAX_NAME_LENGTH,
   moveTask,
   pushedTasks,
+  removeTask,
+  renameTask,
   resizeTask,
 } from "../src/schedule.js";
 import { createDefaultPlan } from "../src/default-plan.js";
@@ -106,4 +110,48 @@ test("les fonctions ne modifient jamais le plan reçu", () => {
   resizeTask(base, "t2", 9);
   computeSchedule(base);
   assert.deepEqual(base, copy);
+});
+
+test("ajouter une tâche crée une tâche de trois jours au jour 0, sans lien", () => {
+  const base = createDefaultPlan(START);
+  const { plan, id } = addTask(base, "  Maquettes  ");
+  assert.equal(id, "t8");
+  assert.deepEqual(findTask(plan, id), { id: "t8", name: "Maquettes", start: 0, duration: 3 });
+  assert.equal(plan.links.length, base.links.length);
+  assert.equal(base.tasks.length, 7);
+});
+
+test("après une suppression, un nouvel identifiant ne réutilise pas un identifiant existant", () => {
+  const base = removeTask(createDefaultPlan(START), "t3");
+  const { id } = addTask(base, "Revue");
+  assert.equal(id, "t8");
+  const second = addTask(addTask(base, "A").plan, "B");
+  assert.equal(second.id, "t9");
+});
+
+test("un nom vide à l'ajout devient « Nouvelle tâche »", () => {
+  const { plan, id } = addTask(createDefaultPlan(START), "   ");
+  assert.equal(findTask(plan, id).name, "Nouvelle tâche");
+});
+
+test("renommer nettoie le nom et le limite à 80 caractères", () => {
+  const plan = renameTask(createDefaultPlan(START), "t1", `  Cadrage   ${"x".repeat(100)}`);
+  assert.equal(findTask(plan, "t1").name.length, MAX_NAME_LENGTH);
+  assert.ok(findTask(plan, "t1").name.startsWith("Cadrage x"));
+});
+
+test("un nom vide est refusé : le plan reste inchangé", () => {
+  const base = createDefaultPlan(START);
+  assert.equal(renameTask(base, "t1", "   "), base);
+});
+
+test("supprimer une tâche retire ses liens et laisse les autres en place", () => {
+  const base = createDefaultPlan(START);
+  const plan = removeTask(base, "t3");
+  assert.equal(findTask(plan, "t3"), undefined);
+  assert.ok(plan.links.every((link) => link.from !== "t3" && link.to !== "t3"));
+  assert.equal(plan.links.length, 4);
+  assert.deepEqual(plan.tasks.map((task) => task.start), [0, 3, 18, 22, 24, 27]);
+  assert.equal(computeSchedule(plan).critical.t2, false);
+  assert.equal(base.tasks.length, 7);
 });

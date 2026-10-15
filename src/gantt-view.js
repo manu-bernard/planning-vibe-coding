@@ -1,7 +1,18 @@
 // Rendu de la frise et gestes à la souris.
 // La vue ne détient que le geste en cours ; chaque nouveau plan part vers onChange.
 
-import { computeSchedule, findTask, moveTask, pushedTasks, resizeTask, taskEnd } from "./schedule.js";
+import {
+  addTask,
+  computeSchedule,
+  findTask,
+  MAX_NAME_LENGTH,
+  moveTask,
+  pushedTasks,
+  removeTask,
+  renameTask,
+  resizeTask,
+  taskEnd,
+} from "./schedule.js";
 import { formatLong, formatShort, fromIsoDate, workdayToDate } from "./calendar.js";
 
 const DAY_WIDTH = 30;
@@ -11,7 +22,7 @@ const BAR_HEIGHT = 26;
 const FOOTER_HEIGHT = 28;
 const DAY_LETTERS = ["L", "M", "M", "J", "V"];
 const SVG_NS = "http://www.w3.org/2000/svg";
-const HINT = "Glissez une barre pour la déplacer, son bord droit pour l'étirer.";
+const HINT = "Glissez une barre pour la déplacer, son bord droit pour l'étirer. Un clic sur un nom le renomme.";
 
 function createElement(tag, className, text) {
   const node = document.createElement(tag);
@@ -49,6 +60,7 @@ function placeBox(node, left, top, width, height) {
 export function createGanttView(elements, { onChange }) {
   let plan = null;
   let gesture = null;
+  let editingId = null;
 
   function nameOf(view, id) {
     const task = findTask(view, id);
@@ -89,13 +101,72 @@ export function createGanttView(elements, { onChange }) {
     const head = createElement("div", "names-head");
     head.style.height = `${HEADER_HEIGHT}px`;
     head.append(createElement("span", "label", "Tâche"));
+    let input = null;
     const rows = view.tasks.map((task) => {
       const row = createElement("div", "name-row");
       row.style.height = `${ROW_HEIGHT}px`;
-      row.append(createElement("span", "name", task.name));
+      if (task.id === editingId) {
+        input = createNameInput(task);
+        row.append(input);
+      } else {
+        row.append(createNameButton(task));
+      }
+      row.append(createDeleteButton(task));
       return row;
     });
     elements.names.replaceChildren(head, ...rows);
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  function createNameButton(task) {
+    const button = createElement("button", "name", task.name);
+    button.type = "button";
+    button.title = "Renommer";
+    button.addEventListener("click", () => {
+      editingId = task.id;
+      draw(plan);
+    });
+    return button;
+  }
+
+  function createNameInput(task) {
+    const input = createElement("input", "name-input");
+    input.value = task.name;
+    input.maxLength = MAX_NAME_LENGTH;
+    input.setAttribute("aria-label", "Nom de la tâche");
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") finishRename(task.id, input.value);
+      if (event.key === "Escape") finishRename(task.id, null);
+    });
+    // Un champ retiré par un nouveau rendu ne valide rien
+    input.addEventListener("blur", () => {
+      if (input.isConnected) finishRename(task.id, input.value);
+    });
+    return input;
+  }
+
+  function createDeleteButton(task) {
+    const button = createElement("button", "delete", "×");
+    button.type = "button";
+    button.title = "Supprimer";
+    button.setAttribute("aria-label", `Supprimer « ${task.name} »`);
+    button.addEventListener("click", () => {
+      if (editingId === task.id) editingId = null;
+      say(`${nameOf(plan, task.id)} supprimée.`);
+      onChange(removeTask(plan, task.id));
+    });
+    return button;
+  }
+
+  function finishRename(id, value) {
+    if (editingId !== id) return;
+    editingId = null;
+    const next = value === null ? plan : renameTask(plan, id, value);
+    if (next === plan) draw(plan);
+    else onChange(next);
   }
 
   function drawHeader(view, weeks) {
@@ -247,6 +318,13 @@ export function createGanttView(elements, { onChange }) {
     };
     document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerup", onPointerUp, { once: true });
+  });
+
+  elements.addButton.addEventListener("click", () => {
+    const added = addTask(plan, "Nouvelle tâche");
+    editingId = added.id;
+    say("Tâche ajoutée : donnez-lui un nom.");
+    onChange(added.plan);
   });
 
   function render(nextPlan) {
