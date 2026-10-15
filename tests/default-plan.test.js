@@ -13,3 +13,13 @@ test("le plan de départ contient les sept étapes enchaînées", () => {
     assert.deepEqual(link, { from: `t${index + 1}`, to: `t${index + 2}` });
   });
 });
+
+test("le plan de départ est identique à chaque appel et indépendant du précédent", () => {
+  const first = createDefaultPlan("2026-10-19");
+  first.tasks[0].duration = 9;
+  first.links.pop();
+  const second = createDefaultPlan("2026-10-19");
+  assert.equal(second.tasks[0].duration, 3);
+  assert.equal(second.links.length, 6);
+  assert.deepEqual(second, createDefaultPlan("2026-10-19"));
+});

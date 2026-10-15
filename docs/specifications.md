@@ -35,8 +35,9 @@ Total : 30 jours ouvrés, soit six semaines. Au départ, les sept étapes sont t
 7. **Relier deux tâches** en glissant d'une barre vers une autre ; un lien qui créerait une boucle est refusé ; un clic sur un lien le retire.
 8. **Annuler** le dernier geste (bouton et Ctrl+Z / Cmd+Z), sur plusieurs niveaux.
 9. **Sauvegarde** dans le navigateur : en revenant sur la page, on retrouve son planning.
+10. **Repartir du planning de départ** en un clic, pour recommencer un exercice ; le geste s'annule comme les autres.
 
-Ordre de priorité si le temps manque : le cœur (1 à 5 et 9), puis la construction du planning (6 et 7), puis l'annulation (8).
+Ordre de priorité si le temps manque : le cœur (1 à 5 et 9), puis la construction du planning (6 et 7), puis l'annulation et le retour au planning de départ (8 et 10).
 
 ## Fonctionnalités coupées
 

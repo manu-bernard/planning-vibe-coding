@@ -13,6 +13,7 @@
 | Plan sauvegardé invalide : remplacé en entier par le plan de départ, sans réparation partielle | Seule l'application écrit ce plan ; une donnée incohérente vient d'une manipulation extérieure, et une réparation partielle produirait un planning trompeur. |
 | Plan enregistré dès la première ouverture | La date de début du projet reste celle de la première visite, même en revenant une autre semaine. |
 | La vue ne détient que le geste en cours ; le plan appartient à `main.js` | Un seul endroit change le plan, ce qui rend la sauvegarde et l'annulation simples à brancher. |
+| Bouton « Repartir du planning de départ », sans confirmation | Utile en cours pour recommencer un exercice ; « Annuler » le rattrape, une confirmation serait une étape de trop. |
 | Liens fin-début uniquement | C'est le lien des étapes enchaînées du brief ; il suffit à expliquer le chemin critique. |
 | Lien qui créerait une boucle : refusé | Une boucle rend le planning impossible à calculer. |
 | Bleu réservé au chemin critique | Choix de l'équipe ; la couleur porte un seul sens : « ce retard repousse la fin ». |
